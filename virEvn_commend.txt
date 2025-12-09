@@ -1,0 +1,8 @@
+##Activate virtual env
+--> Scripts\Activate
+
+##Run application
+--> streamlit run app.py
+
+#Export required package
+--> pip freeze > requirements.txt
