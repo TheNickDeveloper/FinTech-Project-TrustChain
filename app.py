@@ -423,7 +423,7 @@ if page == "Dashboard":
         status_release = (
             '<span class="badge badge-green">🔓 Released</span>'
             if released else
-            '<span class="badge badge-red">❌ Not Released</span>'
+            '<span class="badge badge-red">❌ Locked</span>'
         )
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
