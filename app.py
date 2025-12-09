@@ -323,21 +323,80 @@ if page == "Dashboard":
     st.markdown("---")
     st.subheader("Funding Overview — Funded vs Remaining")
     # donut
-    rows = []
-    for s in students:
-        funded = min(s["received"], s["need"])
-        remain = max(s["need"] - s["received"], 0.0)
-        rows.append({"student": s["name"], "label": "Funded", "value": funded})
-        rows.append({"student": s["name"], "label": "Remaining", "value": remain})
-    df_pie = pd.DataFrame(rows)
-    if not df_pie.empty:
-        pie_df = df_pie.copy()
-        pie_df["id"] = pie_df["student"] + " — " + pie_df["label"]
-        fig = px.pie(pie_df, names="id", values="value", hole=0.55, hover_data=["student", "label", "value"])
-        fig.update_traces(textinfo='percent+label')
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No data yet.")
+    # rows = []
+    # for s in students:
+    #     funded = min(s["received"], s["need"])
+    #     remain = max(s["need"] - s["received"], 0.0)
+    #     rows.append({"student": s["name"], "label": "Funded", "value": funded})
+    #     rows.append({"student": s["name"], "label": "Remaining", "value": remain})
+    # df_pie = pd.DataFrame(rows)
+    # if not df_pie.empty:
+    #     pie_df = df_pie.copy()
+    #     pie_df["id"] = pie_df["student"] + " — " + pie_df["label"]
+    #     fig = px.pie(pie_df, names="id", values="value", hole=0.55, hover_data=["student", "label", "value"])
+    #     fig.update_traces(textinfo='percent+label')
+    #     st.plotly_chart(fig, use_container_width=True)
+    # else:
+    #     st.info("No data yet.")
+    
+    required_total = sum(s["need"] for s in st.session_state.students)
+    received_total = sum(min(s["received"], s["need"]) for s in st.session_state.students)
+
+    released_total = sum(
+        s["need"] for s in st.session_state.students if s.get("released", False)
+    )
+
+    not_released_total = max(received_total - released_total, 0)
+    remaining_total = max(required_total - received_total, 0)
+
+    admin_fee_total = sum(
+        float(tx.get("admin_fee", 0.0))
+        for tx in st.session_state.ledger
+        if tx.get("type") == "admin_fee"
+    )
+
+    labels = ["Funded - Not Released 🔒", "Funded - Released 🔓", "Remaining 🔄", "Admin Fee 🏛"]
+    values = [not_released_total, released_total, remaining_total, admin_fee_total]
+
+    # Custom color strategy
+    colors = ["#FFC300", "#2ECC71", "#E74C3C", "#9B59B6"]  
+    # Yellow, Green, Red, Purple
+
+    fig = px.pie(
+        values=values,
+        names=labels,
+        color=labels,
+        color_discrete_map=dict(zip(labels, colors)),
+        hole=0.55,
+    )
+
+    fig.update_traces(
+        textinfo="percent+label",
+        pull=[0.03, 0.02, 0, 0.05],
+    )
+
+    fig.update_layout(
+        title="💸 Overall Funding Transparency Status",
+        showlegend=True,
+        margin=dict(t=40, l=0, r=0, b=0),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        f"""
+        <div style='text-align:center; font-size:15px; margin-top:8px;'>
+            <b>Total Required:</b> ${required_total:,.2f} &nbsp;•&nbsp;
+            <b>Funded:</b> ${received_total:,.2f} &nbsp;•&nbsp;
+            <b>Remaining:</b> ${remaining_total:,.2f}
+            <br>
+            <b>Released:</b> ${released_total:,.2f} &nbsp;•&nbsp;
+            <b>Not Released:</b> ${not_released_total:,.2f} &nbsp;•&nbsp;
+            <b>Admin Fee:</b> ${admin_fee_total:,.2f}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
     st.subheader("Students")
