@@ -240,16 +240,6 @@ def db_update_proof(file_hash: str, updates: Dict[str, Any]):
     conn.close()
 
 # -------------------------
-# End of Part 1
-# -------------------------
-
-
-# =========================
-# app.py — Part 2 of 4
-# Session init, helpers, auto-release, CSS, notifications
-# =========================
-
-# -------------------------
 # Session initialization (load DB into session)
 # -------------------------
 if "initialized" not in st.session_state:
@@ -443,14 +433,6 @@ if st.session_state.get("notification"):
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Dashboard", "Add Student", "Make Donation", "Upload Proof", "Ledger"])
 
-# -------------------------
-# End of Part 2
-# -------------------------
-# =========================
-# app.py — Part 3 of 4
-# Pages: Dashboard, Make Donation, Upload Proof, Ledger, Add Student
-# =========================
-
 # ------------------------------
 # Dashboard page
 # ------------------------------
@@ -617,8 +599,8 @@ elif page == "Make Donation":
 # Upload Proof page (streamlined Reviewing -> 7s -> Verified -> Release)
 # ------------------------------
 elif page == "Upload Proof":
-    st.title("📄 Upload Proof (NGO)")
-    st.write("When a student reaches required amount, upload proof (PDF or image). Flow: Reviewing → (7s) → Verified → Auto-release.")
+    st.title("📄 Upload Proof")
+    st.write("When a student reaches required amount, upload proof (PDF or image).")
 
     # refresh proofs from DB into session to keep fresh state
     proofs_db = load_proofs_from_db()
@@ -839,7 +821,3 @@ elif page == "Add Student":
         st.session_state.students = load_students_from_db()
         st.session_state.notification = {"message": f"👶 Student '{name}' added.", "level": "success"}
         safe_rerun()
-
-# ------------------------------
-# End of Part 3
-# ------------------------------
