@@ -1,8 +1,3 @@
-# =========================
-# app.py — Part 1 of 4
-# Imports + DB Layer
-# =========================
-
 import streamlit as st
 import hashlib
 import time
