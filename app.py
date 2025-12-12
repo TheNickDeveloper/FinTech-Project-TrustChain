@@ -15,7 +15,7 @@ from typing import Dict, Any, List
 DB_PATH = "trustchain.db"
 UPLOAD_DIR = Path("./uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-ADMIN_FEE_RATE = 0.02  # admin fee applied once on release (2%)
+ADMIN_FEE_RATE = 0.05  # admin fee applied once on release (5%)
 
 # -------------------------
 # Database helpers
@@ -245,7 +245,7 @@ if "initialized" not in st.session_state:
 
     # Seed sample students if DB empty (safe idempotent)
     if len(students) == 0:
-        db_add_student("Alice Chan", 2000.0, "Alice dreams to continue secondary school.")
+        db_add_student("David Lee", 800.0, "David needs money to buy more pizza for his studuent and TA to keep them energized.")
         db_add_student("Ben Wong", 1500.0, "Ben needs tuition for next semester.")
         db_add_student("Cindy Lee", 1000.0, "Cindy needs school supplies & uniform.")
         students = load_students_from_db()
@@ -347,42 +347,47 @@ def try_auto_release(student: Dict[str, Any]):
         student["released"] = True
 
         # admin fee (charged once)
-        if not student.get("admin_charged", False):
-            admin_fee = round(float(student["need"]) * ADMIN_FEE_RATE, 2)
-            student_amount = round(float(student["need"]) - admin_fee, 2)
+        # Charge admin fee exactly once per student
+    if not student.get("admin_charged", False):
 
-            ledger_entry_fee = {
-                "type": "admin_fee",
-                "student_id": student["id"],
-                "student_name": student["name"],
-                "admin_fee": admin_fee,
-                "student_amount": student_amount,
-                "time": now_ts()
-            }
-            add_ledger(ledger_entry_fee)
-            student["admin_charged"] = True
+        admin_fee = round(float(student["need"]) * ADMIN_FEE_RATE, 2)
+        student_amount = float(student["need"]) - admin_fee
 
-        # release ledger
-        ledger_entry_release = {
-            "type": "release",
+        add_ledger({
+            "type": "admin_fee",
             "student_id": student["id"],
             "student_name": student["name"],
-            "amount_released": float(student["need"]),
-            "time": now_ts()
-        }
-        add_ledger(ledger_entry_release)
+            "admin_fee": admin_fee,
+            "student_amount": student_amount,
+            "time": now_ts(),
+        })
 
-        # persist student changes
-        db_update_student(student)
+        student["admin_charged"] = True
+
+    else:
+        # Fetch previously charged admin fee from ledger
+        admin_fee = next(
+            (float(tx["admin_fee"]) for tx in st.session_state.ledger
+            if tx.get("type") == "admin_fee" and tx.get("student_id") == student["id"]),
+            0.0
+        )
+        student_amount = float(student["need"]) - admin_fee
+
+        db_update_student({
+            **student,
+            "admin_charged": int(student.get("admin_charged", False)),
+            "released": int(student.get("released", False)),
+        })
 
         # UI notification
         st.session_state.notification = {"message": f"🔓 Funds released to {student['name']}", "level": "info"}
         st.session_state.show_balloons = True
 
+
 # -------------------------
 # CSS / Small UI tweaks
 # -------------------------
-st.set_page_config(page_title="TrustChain Demo", layout="centered")
+st.set_page_config(page_title="TrustChain", layout="centered")
 CSS = """
 <style>
 body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
@@ -439,7 +444,13 @@ if page == "Dashboard":
 
     total_need = sum(float(s.get("need", 0.0)) for s in students)
     received_total = sum(min(float(s.get("received", 0.0)), float(s.get("need", 0.0))) for s in students)
-    total_admin = sum(float(tx.get("admin_fee", 0)) for tx in ledger if tx.get("type") == "admin_fee")
+    # total_admin = sum(float(tx.get("admin_fee", 0)) for tx in ledger if tx.get("type") == "admin_fee")
+    total_admin = sum(
+        float(tx.get("admin_fee") or 0)
+        for tx in ledger
+        if tx.get("type") == "admin_fee"
+    )
+
     released_total = sum(float(s.get("need", 0.0)) if s.get("released") else 0 for s in students)
 
     c1, c2, c3 = st.columns(3)
@@ -716,9 +727,9 @@ elif page == "Upload Proof":
                     # display a progress bar for the review
                     ph_text = st.empty()
                     ph_progress = st.empty()
-                    ph_text.info("Review in progress...")
-                    for i in range(1, 71):  # 7 seconds with 0.1s steps -> 70 iterations
-                        ph_progress.progress(int((i/70) * 100))
+                    ph_text.info("AI Review in progress...")
+                    for i in range(1, 51):  # 5 seconds with 0.1s steps -> 70 iterations
+                        ph_progress.progress(int((i/50) * 100))
                         time.sleep(0.1)
 
                     ph_text.success("Review completed. Marking Verified...")
@@ -797,9 +808,10 @@ elif page == "Ledger":
                 st.markdown(f"**🏛 Admin Fee Charged** — {student_name} • fee: ${admin_fee:,.2f} • student receives: ${student_amount:,.2f} • {time_str}")
             elif t == "release":
                 student_name = tx.get("student_name", "Unknown")
-                amount_released = float(tx.get("amount_released", tx.get("gross", 0.0)))
+                amount_released = float(tx.get("student_amount", 0.0))
                 time_str = tx.get("time", "")
                 st.markdown(f"**🔓 Release** — {student_name} • ${amount_released:,.2f} • {time_str}")
+
             else:
                 st.json(tx)
 
